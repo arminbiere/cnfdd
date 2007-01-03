@@ -342,7 +342,7 @@ static void
 move (void)
 {
   char * used = malloc (maxidx + 1);
-  int i, j, idx, count, * saved;
+  int i, j, idx, count, * saved, movedtomaxidx;
 
   for (i = 1; i <= maxidx; i++)
     used[i] = 0;
@@ -357,11 +357,20 @@ move (void)
 	used[idx] = 1;
     }
 
+  movedtomaxidx = 0;
   count = 0;
   for (i = 1; i <= maxidx; i++)
-    count += used[i];
+    {
+      if (!used[i])
+	continue;
 
-  if (count && count < maxidx)
+      if (movedto[i] > movedtomaxidx)
+	movedtomaxidx = movedto[i];
+
+      count++;
+    }
+
+  if (count && count < movedtomaxidx)
     {
       saved = malloc ((maxidx + 1) * sizeof (saved[0]));
       for (i = 1; i <= maxidx; i++)
@@ -377,7 +386,7 @@ move (void)
       print (tmp);
       if (run (tmp) == expected)
 	{
-	  msg ("removed %d variables", maxidx - count);
+	  msg ("removed %d variables", movedtomaxidx - count);
 	  save ();
 	  assert (run (dst) == expected);
 	}
