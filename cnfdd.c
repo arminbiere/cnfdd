@@ -1,27 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <assert.h>
-#include <stdarg.h>
-#include <string.h>
-#include <ctype.h>
-#include <limits.h>
-
-static const char * src;
-static const char * dst;
-static const char * cmd;
-
-static void
-die (const char * fmt, ...)
-{
-  va_list ap;
-  fputs ("*** cnfdd: ", stderr);
-  va_start (ap, fmt);
-  vfprintf (stderr, fmt, ap);
-  va_end (ap);
-  fputc ('\n', stderr);
-  fflush (stderr);
-  exit (1);
-}
+/* Copyright (c) 2006, Armin Biere, Johannes Kepler University. */
 
 #define USAGE \
   "usage: cnfdd [-h] src dst cmd\n" \
@@ -35,10 +12,35 @@ die (const char * fmt, ...)
   "of 'cmd dst'.  Then unused variables are removed, as long the\n" \
   "exit code does not change.\n"
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <assert.h>
+#include <stdarg.h>
+#include <string.h>
+#include <ctype.h>
+#include <limits.h>
+
+static const char * src;
+static const char * dst;
+static const char * cmd;
+
 static int ** clauses;
 static int size_clauses;
 static int maxidx;
 static int * movedto;
+
+static void
+die (const char * fmt, ...)
+{
+  va_list ap;
+  fputs ("*** cnfdd: ", stderr);
+  va_start (ap, fmt);
+  vfprintf (stderr, fmt, ap);
+  va_end (ap);
+  fputc ('\n', stderr);
+  fflush (stderr);
+  exit (1);
+}
 
 static void
 parse (void)
