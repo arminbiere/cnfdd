@@ -276,8 +276,6 @@ reduce (void)
       i = 0;
 
       do {
-	i += delta;
-
 	end = i + delta;
 	if (end > size_clauses)
 	  end = size_clauses;
@@ -318,6 +316,8 @@ reduce (void)
 	      }
 	  }
 
+	i += delta;
+
       } while (i < size_clauses);
 
       if (removed)
@@ -334,10 +334,15 @@ reduce (void)
 }
 
 static void
+shrink (void)
+{
+}
+
+static void
 move (void)
 {
   char * used = malloc (maxidx + 1);
-  int i, j, idx, count;
+  int i, j, idx, count, * saved;
 
   for (i = 1; i <= maxidx; i++)
     used[i] = 0;
@@ -358,6 +363,10 @@ move (void)
 
   if (count && count < maxidx)
     {
+      saved = malloc ((maxidx + 1) * sizeof (saved[0]));
+      for (i = 1; i <= maxidx; i++)
+	saved[i] = movedto[i];
+
       j = 0;
       for (i = 1; i <= maxidx; i++)
 	if (used[i])
@@ -375,8 +384,10 @@ move (void)
       else
 	{
 	  for (i = 1; i <= maxidx; i++)
-	    movedto[i] = i;
+	    movedto[i] = saved[i];
 	}
+
+      free (saved);
     }
 
   free (used);
@@ -440,6 +451,8 @@ main (int argc, char ** argv)
   parse ();
   setup ();
   reduce ();
+  move ();
+  shrink ();
   move ();
   reset ();
 
