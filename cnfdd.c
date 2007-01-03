@@ -279,7 +279,7 @@ reduce (void)
 
 	if (isatty (2))
 	  {
-	    fprintf (stderr, "%d\r", i);
+	    fprintf (stderr, "  %d\r", i);
 	    fflush (stderr);
 	  }
 
@@ -323,7 +323,7 @@ reduce (void)
 	      }
 	  }
 
-	i += width;
+	i = end;
 
       } while (i < size_clauses);
 
