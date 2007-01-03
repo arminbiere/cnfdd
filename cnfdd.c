@@ -20,6 +20,7 @@
 #include <ctype.h>
 #include <limits.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 static const char * src;
@@ -180,7 +181,7 @@ run (const char * name)
   sprintf (buffer, "exec %s %s 1>/dev/null 2>/dev/null", cmd, name);
   res = system (buffer);
   free (buffer);
-  res &= 0xff;
+  res = WEXITSTATUS (res);
   return res;
 }
 
