@@ -262,21 +262,28 @@ static void
 reduce (void)
 {
   int bytes = size_clauses * sizeof (int);
-  int i, j, end, delta, found, removed, total;
+  int i, j, end, width, found, removed, total;
   int ** saved = malloc (bytes);
 
-  delta = size_clauses;
+  width = size_clauses;
   total = 0;
 
-  while (delta)
+  while (width)
     {
-      msg ("delta %d", delta);
+      msg ("delta width %d", width);
 
       removed = 0;
       i = 0;
 
       do {
-	end = i + delta;
+
+	if (isatty (2))
+	  {
+	    fprintf (stderr, "%d\r", i);
+	    fflush (stderr);
+	  }
+
+	end = i + width;
 	if (end > size_clauses)
 	  end = size_clauses;
 
@@ -316,7 +323,7 @@ reduce (void)
 	      }
 	  }
 
-	i += delta;
+	i += width;
 
       } while (i < size_clauses);
 
@@ -326,7 +333,7 @@ reduce (void)
 	  save ();
 	}
 
-      delta /= 2;
+      width /= 2;
     }
 
   free (saved);
