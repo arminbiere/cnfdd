@@ -235,11 +235,9 @@ print (const char * name)
 static void
 setup (void)
 {
-  msg ("copying original CNF '%s' to '%s'", src, dst);
   print (dst);
-  msg ("running once on '%s'", dst);
   expected = run (dst);
-  msg ("exit code of '%s %s' is %d", cmd, dst, expected);
+  msg ("expected exit code is %d", expected);
   sprintf (tmp, "/tmp/cnfdd-%u", (unsigned) getpid ());
 }
 
@@ -306,7 +304,11 @@ reduce (void)
       } while (i < size_clauses);
 
       if (removed)
-	msg ("removed %d clauses", removed);
+	{
+	  msg ("removed %d clauses", removed);
+	  print (dst);
+	  msg ("saved intermediate result in '%s'", dst);
+	}
 
       delta /= 2;
     }
@@ -314,8 +316,6 @@ reduce (void)
   msg ("removed %d clauses in total", total);
   free (saved);
 
-  print (dst);
-  msg ("saved intermediate result in '%s'", dst);
 }
 
 static void
