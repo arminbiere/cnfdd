@@ -1,7 +1,7 @@
 /* Copyright (c) 2006, Armin Biere, Johannes Kepler University. */
 
 #define USAGE \
-  "usage: cnfdd [-h] src dst cmd\n" \
+  "usage: cnfdd [-h] src dst cmd [<cmdopt> ...]\n" \
   "\n" \
   "  src   file name of an existing CNF in DIMACS format\n" \
   "  dst   file name of generated minimized CNF\n" \
@@ -19,15 +19,19 @@
 #include <string.h>
 #include <ctype.h>
 #include <limits.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 static const char * src;
 static const char * dst;
-static const char * cmd;
+static char * cmd;
 
 static int ** clauses;
 static int size_clauses;
 static int maxidx;
 static int * movedto;
+static int expected;
+static char tmp[100];
 
 static void
 die (const char * fmt, ...)
@@ -39,7 +43,21 @@ die (const char * fmt, ...)
   va_end (ap);
   fputc ('\n', stderr);
   fflush (stderr);
+  if (tmp[0] == '/')
+    unlink (tmp);
   exit (1);
+}
+
+static void
+msg (const char * fmt, ...)
+{
+  va_list ap;
+  fputs ("[cnfdd] ", stderr);
+  va_start (ap, fmt);
+  vfprintf (stderr, fmt, ap);
+  va_end (ap);
+  fputc ('\n', stderr);
+  fflush (stderr);
 }
 
 static void
@@ -140,16 +158,31 @@ NEXT:
 
   assert (!clause);
   fclose (file);
+
+  msg ("parsed %d variables", maxidx);
+  msg ("parsed %d clauses", size_clauses);
+}
+
+static int
+run (const char * name)
+{
+  char * buffer = malloc (strlen (cmd) + strlen (name) + 100);
+  int res;
+  sprintf (buffer, "exec %s %s 1>/dev/null 2>/dev/null", cmd, name);
+  res = system (buffer);
+  free (buffer);
+  res &= 0xff;
+  return res;
 }
 
 static void
-print (void)
+print (const char * name)
 {
   int i, j, lit, idx, count, movedtomaxidx;
-  FILE * file = fopen (dst, "w");
+  FILE * file = fopen (name, "w");
 
   if (!file)
-    die ("can not write to '%s'", dst);
+    die ("can not write to '%s'", name);
 
   movedtomaxidx = 0;
   count = 0;
@@ -200,8 +233,89 @@ print (void)
 }
 
 static void
+setup (void)
+{
+  msg ("copying original CNF '%s' to '%s'", src, dst);
+  print (dst);
+  msg ("running once on '%s'", dst);
+  expected = run (dst);
+  msg ("exit code of '%s %s' is %d", cmd, dst, expected);
+  sprintf (tmp, "/tmp/cnfdd-%u", (unsigned) getpid ());
+}
+
+static void
 reduce (void)
 {
+  int bytes = size_clauses * sizeof (int);
+  int i, j, end, delta, found, removed, total;
+  int ** saved = malloc (bytes);
+
+  delta = size_clauses;
+  total = 0;
+
+  while (delta)
+    {
+      msg ("delta %d", delta);
+
+      removed = 0;
+      i = 0;
+
+      do {
+	i += delta;
+
+	end = i + delta;
+	if (end > size_clauses)
+	  end = size_clauses;
+
+	found = 0;
+	for (j = i; j < end; j++)
+	  {
+	    if (clauses[j])
+	      {
+		found++;
+		saved[j] = clauses[j];
+		clauses[j] = 0;
+	      }
+	    else
+	      saved[j] = 0;
+	  }
+
+	if (found)
+	  {
+	    print (tmp);
+
+	    if (run (tmp) == expected)
+	      {
+		for (j = i; j < end; j++)
+		  {
+		    if (saved[j])
+		      {
+			total++;
+			removed++;
+			free (clauses[j]);
+		      }
+		  }
+	      }
+	    else
+	      {
+		for (j = i; j < end; j++)
+		  clauses[j] = saved[j];
+	      }
+	  }
+
+      } while (i < size_clauses);
+
+      if (removed)
+	msg ("removed %d clauses", removed);
+
+      delta /= 2;
+    }
+
+  msg ("removed %d clauses in total", total);
+  free (saved);
+
+  print (dst);
+  msg ("saved intermediate result in '%s'", dst);
 }
 
 static void
@@ -217,6 +331,8 @@ reset (void)
     free (clauses[i]);
   free (clauses);
   free (movedto);
+  free (cmd);
+  unlink (tmp);
 }
 
 int
@@ -226,19 +342,27 @@ main (int argc, char ** argv)
 
   for (i = 1; i < argc; i++)
     {
-      if (!strcmp (argv[i], "-h"))
+      if (!cmd)
 	{
-	  printf ("%s", USAGE);
-	  exit (0);
+	  if (!strcmp (argv[i], "-h"))
+	    {
+	      printf ("%s", USAGE);
+	      exit (0);
+	    }
+
+	  if (argv[i][0] == '-')
+	    die ("invalid command line option '%s'", argv[i]);
 	}
 
-      if (argv[i][0] == '-')
-	die ("invalid command line option '%s'", argv[i]);
-
       if (cmd)
-	die ("too many command line options");
+	{
+	  char * old = cmd;
+	  cmd = malloc (strlen (old) + 1 + strlen (argv[i]) + 1);
+	  sprintf (cmd, "%s %s", old, argv[i]);
+	  free (old);
+	}
       else if (dst)
-	cmd = argv[i];
+	cmd = strdup (argv[i]);
       else if (src)
 	dst = argv[i];
       else
@@ -255,9 +379,9 @@ main (int argc, char ** argv)
     die ("'cmd' missing");
 
   parse ();
+  setup ();
   reduce ();
   move ();
-  print ();
   reset ();
 
   return 0;
