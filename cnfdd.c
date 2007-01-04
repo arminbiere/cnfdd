@@ -185,18 +185,12 @@ run (const char * name)
   return res;
 }
 
-static void
-print (const char * name)
+static int
+keptvariables (void)
 {
-  int i, j, lit, idx, count, movedtomaxidx;
-  FILE * file = fopen (name, "w");
+  int i, j, idx, res;
 
-  if (!file)
-    die ("can not write to '%s'", name);
-
-  movedtomaxidx = 0;
-  count = 0;
-
+  res = 0;
   for (i = 0; i < size_clauses; i++)
     {
       if (!clauses[i])
@@ -209,14 +203,37 @@ print (const char * name)
 	    continue;
 
 	  idx = movedto[idx];
-	  if (idx > movedtomaxidx)
-	    movedtomaxidx = idx;
+	  if (idx > res)
+	    res = idx;
 	}
-
-      count++;
     }
 
-  fprintf (file, "p cnf %d %d\n", movedtomaxidx, count);
+  return res;
+}
+
+static int
+keptclauses (void)
+{
+  int i, res;
+
+  res = 0;
+  for (i = 0; i < size_clauses; i++)
+    if (clauses[i])
+      res++;
+
+  return res;
+}
+
+static void
+print (const char * name)
+{
+  FILE * file = fopen (name, "w");
+  int i, j, lit, idx;
+
+  if (!file)
+    die ("can not write to '%s'", name);
+
+  fprintf (file, "p cnf %d %d\n", keptvariables (), keptclauses ());
 
   for (i = 0; i < size_clauses; i++)
     {
@@ -271,7 +288,8 @@ reduce (void)
 
   while (width)
     {
-      msg ("delta width %d", width);
+      if (!isatty (2))
+	msg ("delta width %d", width);
 
       removed = 0;
       i = 0;
@@ -280,7 +298,10 @@ reduce (void)
 
 	if (isatty (2))
 	  {
-	    fprintf (stderr, "  %d\r", i);
+	    fprintf (stderr,
+		     "[cnfdd] delta width %d completed %d/%d\r", 
+		     width, i, size_clauses);
+
 	    fflush (stderr);
 	  }
 
@@ -327,6 +348,16 @@ reduce (void)
 	i = end;
 
       } while (i < size_clauses);
+
+      if (isatty (2))
+	{
+	  fputc ('\r', stderr);
+	  for (i = 0; i < 79; i++)
+	    fputc (' ', stderr);
+	  fputc ('\r', stderr);
+
+	  msg ("delta width %d", width);
+	}
 
       if (removed)
 	{
@@ -471,6 +502,10 @@ main (int argc, char ** argv)
   move ();
   shrink ();
   move ();
+
+  msg ("kept %d variables", keptvariables ());
+  msg ("kept %d clauses", keptclauses ());
+
   reset ();
 
   return 0;
