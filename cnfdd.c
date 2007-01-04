@@ -34,6 +34,7 @@ static int * movedto;
 static int expected;
 static char tmp[100];
 static int round;
+static int changed;
 
 static void
 die (const char * fmt, ...)
@@ -274,7 +275,18 @@ static void
 save (void)
 {
   print (dst);
+  changed = 1;
   msg ("saved intermediate result in '%s'", dst);
+}
+
+static void
+erase (void)
+{
+  int i;
+  fputc ('\r', stderr);
+  for (i = 0; i < 79; i++)
+    fputc (' ', stderr);
+  fputc ('\r', stderr);
 }
 
 static void
@@ -290,7 +302,7 @@ reduce (void)
   while (width)
     {
       if (!isatty (2))
-	msg ("round %d delta width %d", round, width);
+	msg ("reduce(%d) width %d", round, width);
 
       removed = 0;
       i = 0;
@@ -300,7 +312,7 @@ reduce (void)
 	if (isatty (2))
 	  {
 	    fprintf (stderr,
-		     "[cnfdd] round %d delta width %d completed %d/%d\r", 
+		     "[cnfdd] reduce(%d) width %d completed %d/%d\r", 
 		     round, width, i, size_clauses);
 
 	    fflush (stderr);
@@ -351,26 +363,25 @@ reduce (void)
       } while (i < size_clauses);
 
       if (isatty (2))
-	{
-	  fputc ('\r', stderr);
-	  for (i = 0; i < 79; i++)
-	    fputc (' ', stderr);
-	  fputc ('\r', stderr);
+	erase ();
 
-	  msg ("round %d delta width %d", round, width);
-	}
+      msg ("reduce(%d) width %d removed %d clauses",
+	   round, width, removed);
 
       if (removed)
-	{
-	  msg ("removed %d clauses", removed);
-	  save ();
-	}
+	save ();
 
       width /= 2;
+
+      j = 0;
+      for (i = 0; i < size_clauses; i++)
+	if (clauses[i])
+	  clauses[j++] = clauses[i];
+
+      size_clauses = j;
     }
 
   free (saved);
-
 }
 
 static void
@@ -396,13 +407,24 @@ shrink (void)
 	  else
 	    clauses[i][j] = lit;
 	}
+
+      if (isatty (2))
+	{
+	  fprintf (stderr,
+		   "[cnfdd] shrink(%d) completed %d/%d\r", 
+		   round, i, size_clauses);
+
+	  fflush (stderr);
+	}
     }
 
+  if (isatty (2))
+    erase ();
+
+  msg ("shrink(%d) removed %d literals", removed);
+
   if (removed)
-    {
-      print (dst);
-      msg ("removed %d literals", removed);
-    }
+    save ();
 }
 
 static void
@@ -528,8 +550,10 @@ main (int argc, char ** argv)
   parse ();
   setup ();
 
-  for (round = 1; round <= 2; round++)
+  changed = 1;
+  for (round = 1; changed; round++)
     {
+      changed = 0;
       reduce ();
       move ();
       shrink ();
