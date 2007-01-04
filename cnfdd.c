@@ -34,6 +34,7 @@ static int expected;
 static char tmp[100];
 static int round;
 static int changed;
+static int calls;
 
 static void
 die (const char * fmt, ...)
@@ -170,6 +171,8 @@ run (const char * name)
 {
   char * buffer = malloc (strlen (cmd) + strlen (name) + 100);
   int res;
+
+  calls++;
 
   /* TODO if this command produces a lot of output, e.g. a solution
    * to a SAT problem, then flushing the associated output buffers of
@@ -562,9 +565,10 @@ main (int argc, char ** argv)
       move ();
     }
 
+  msg ("called '%s' %d times", cmd, calls);
+
   msg ("kept %d variables", keptvariables ());
   msg ("kept %d clauses", keptclauses ());
-
   reset ();
 
   return 0;
