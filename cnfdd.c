@@ -33,6 +33,7 @@ static int maxidx;
 static int * movedto;
 static int expected;
 static char tmp[100];
+static int round;
 
 static void
 die (const char * fmt, ...)
@@ -289,7 +290,7 @@ reduce (void)
   while (width)
     {
       if (!isatty (2))
-	msg ("delta width %d", width);
+	msg ("round %d delta width %d", round, width);
 
       removed = 0;
       i = 0;
@@ -299,8 +300,8 @@ reduce (void)
 	if (isatty (2))
 	  {
 	    fprintf (stderr,
-		     "[cnfdd] delta width %d completed %d/%d\r", 
-		     width, i, size_clauses);
+		     "[cnfdd] round %d delta width %d completed %d/%d\r", 
+		     round, width, i, size_clauses);
 
 	    fflush (stderr);
 	  }
@@ -356,7 +357,7 @@ reduce (void)
 	    fputc (' ', stderr);
 	  fputc ('\r', stderr);
 
-	  msg ("delta width %d", width);
+	  msg ("round %d delta width %d", round, width);
 	}
 
       if (removed)
@@ -375,6 +376,33 @@ reduce (void)
 static void
 shrink (void)
 {
+  int i, j, lit, removed;
+
+  removed = 0;
+  for (i = 0; i < size_clauses; i++)
+    {
+      if (!clauses[i])
+	continue;
+
+      for (j = 0; (lit = clauses[i][j]); j++)
+	{
+	  if (lit == INT_MAX)
+	    continue;
+
+	  clauses[i][j] = INT_MAX;
+	  print (tmp);
+	  if (run (tmp) == expected)
+	    removed++;
+	  else
+	    clauses[i][j] = lit;
+	}
+    }
+
+  if (removed)
+    {
+      print (dst);
+      msg ("removed %d literals", removed);
+    }
 }
 
 static void
@@ -393,7 +421,8 @@ move (void)
 
       j = 0;
       while ((idx = abs (clauses[i][j++])))
-	used[idx] = 1;
+	if (idx != INT_MAX)
+	  used[idx] = 1;
     }
 
   movedtomaxidx = 0;
@@ -498,10 +527,14 @@ main (int argc, char ** argv)
 
   parse ();
   setup ();
-  reduce ();
-  move ();
-  shrink ();
-  move ();
+
+  for (round = 1; round <= 2; round++)
+    {
+      reduce ();
+      move ();
+      shrink ();
+      move ();
+    }
 
   msg ("kept %d variables", keptvariables ());
   msg ("kept %d clauses", keptclauses ());
