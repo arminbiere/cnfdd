@@ -489,7 +489,7 @@ move (void)
 
   if (moved)
     {
-      msg ("move(%d) moved %d variables", round, moved);
+      msg ("removed %d variables", moved);
       save ();
     }
 }
