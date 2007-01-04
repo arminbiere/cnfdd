@@ -132,7 +132,7 @@ NEXT:
 
       if (count_clause == size_clause)
 	{
-	  size_clause = size_clause ? 2 * size_clause : 1;
+	  size_clause = size_clause ? 2 * size_clause : 8;
 	  clause = realloc (clause, size_clause * sizeof (clause[0]));
 	}
 
@@ -347,7 +347,7 @@ reduce (void)
 		      {
 			total++;
 			removed++;
-			free (clauses[j]);
+			free (saved[j]);
 		      }
 		  }
 	      }
