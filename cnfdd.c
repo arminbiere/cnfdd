@@ -339,7 +339,6 @@ reduce (void)
 	if (found)
 	  {
 	    print (tmp);
-
 	    if (run (tmp) == expected)
 	      {
 		for (j = i; j < end; j++)
