@@ -67,7 +67,24 @@ static void
 parse (void)
 {
   int i, ch, * clause, lit, sign, size_clause, count_clause, count_clauses;
-  FILE * file = fopen (src, "r");
+  FILE * file;
+  int zipped;
+ 
+  if (strlen (src) > 3 && !strcmp (src + strlen (src) - 3, ".gz"))
+    {
+      const char * gunzip = "gunzip -c %s 2>/dev/null";
+
+      char * cmd = malloc (strlen (src) + strlen (gunzip));
+      sprintf (cmd, gunzip, src);
+      file = popen (cmd, "r");
+      free (cmd);
+      zipped = 1;
+    }
+  else
+    {
+      file = fopen (src, "r");
+      zipped = 0;
+    }
 
   if (!file)
     die ("can not read from '%s'", src);
@@ -160,7 +177,11 @@ NEXT:
     die ("%d clauses missing", size_clauses - count_clauses);
 
   assert (!clause);
-  fclose (file);
+
+  if (zipped)
+    pclose (file);
+  else
+    fclose (file);
 
   msg ("parsed %d variables", maxidx);
   msg ("parsed %d clauses", size_clauses);
