@@ -1,7 +1,10 @@
 /* Copyright (c) 2006, Armin Biere, Johannes Kepler University. */
 
 #define USAGE \
-  "usage: cnfdd [-h] src dst cmd [<cmdopt> ...]\n" \
+  "usage: cnfdd [-h|-t] src dst cmd [<cmdopt> ...]\n" \
+  "\n" \
+  "  -h    print this command line option summary\n" \
+  "  -t    thorough mode, e.g. iterate same widths multiple times\n" \
   "\n" \
   "  src   file name of an existing CNF in DIMACS format\n" \
   "  dst   file name of generated minimized CNF\n" \
@@ -35,6 +38,7 @@ static char tmp[100];
 static int round;
 static int changed;
 static int calls;
+static int thorough;
 
 static void
 die (const char * fmt, ...)
@@ -392,7 +396,13 @@ reduce (void)
       if (removed)
 	save ();
 
-      width /= 2;
+      if (removed && thorough)
+	{
+	  if (width > size_clauses)
+	    width = size_clauses;
+	}
+      else
+	width /= 2;
 
       j = 0;
       for (i = 0; i < size_clauses; i++)
@@ -536,19 +546,16 @@ main (int argc, char ** argv)
 
   for (i = 1; i < argc; i++)
     {
-      if (!cmd)
+      if (!cmd && !strcmp (argv[i], "-h"))
 	{
-	  if (!strcmp (argv[i], "-h"))
-	    {
-	      printf ("%s", USAGE);
-	      exit (0);
-	    }
-
-	  if (argv[i][0] == '-')
-	    die ("invalid command line option '%s'", argv[i]);
+	  printf ("%s", USAGE);
+	  exit (0);
 	}
-
-      if (cmd)
+      else if (!cmd && !strcmp (argv[i], "-t"))
+	thorough = 1;
+      else if (!cmd && argv[i][0] == '-')
+	die ("invalid command line option '%s'", argv[i]);
+      else if (cmd)
 	{
 	  char * old = cmd;
 	  cmd = malloc (strlen (old) + 1 + strlen (argv[i]) + 1);
