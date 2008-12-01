@@ -1,2 +1,5 @@
-eliminate variables directly with delta debugging
-(similar to failed literals)
+- eliminate variables directly with delta debugging,
+  similar to failed literals, as a seperate phase
+  before clause removal
+
+- try to interleave failed literals and clause removal
