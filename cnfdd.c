@@ -397,10 +397,7 @@ reduce (void)
 	save ();
 
       if (removed && thorough)
-	{
-	  if (width > size_clauses)
-	    width = size_clauses;
-	}
+	width = size_clauses;
       else
 	width /= 2;
 
