@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, Armin Biere, Johannes Kepler University. */
+/* Copyright (c) 2006 - 2008, Armin Biere, Johannes Kepler University. */
 
 #define USAGE \
   "usage: cnfdd [-h|-t] src dst cmd [<cmdopt> ...]\n" \
@@ -25,6 +25,9 @@
 #include <limits.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#define TRUE INT_MAX
+#define FALSE -INT_MAX
 
 static const char * src;
 static const char * dst;
@@ -215,23 +218,52 @@ run (const char * name)
 }
 
 static int
+deref (int lit)
+{
+  int idx, res;
+  if (!lit)
+    return 0;
+  idx = abs (lit);
+  if (idx == INT_MAX)
+    return lit;
+  idx = movedto[idx];
+  res = (lit < 0) ? -idx : idx;
+  return res;
+}
+
+static int
+clausesatisfied (int i)
+{
+  int j, lit;
+  if (!clauses[i])
+    return 1;
+  j = 0;
+  while ((lit = clauses[i][j++]))
+    if (deref (lit) == TRUE)
+      return 1;
+  return 0;
+}
+
+static int
 keptvariables (void)
 {
-  int i, j, idx, res;
+  int i, j, idx, lit, res;
 
   res = 0;
   for (i = 0; i < size_clauses; i++)
     {
-      if (!clauses[i])
+      if (clausesatisfied (i))
 	continue;
 
       j = 0;
-      while ((idx = abs (clauses[i][j++])))
+      while ((lit = deref (clauses[i][j++])))
 	{
-	  if (idx == INT_MAX)
+	  if (lit == FALSE)
 	    continue;
 
-	  idx = movedto[idx];
+	  assert (lit != TRUE);
+
+	  idx = abs (lit);
 	  if (idx > res)
 	    res = idx;
 	}
@@ -247,7 +279,7 @@ keptclauses (void)
 
   res = 0;
   for (i = 0; i < size_clauses; i++)
-    if (clauses[i])
+    if (!clausesatisfied (i))
       res++;
 
   return res;
@@ -257,7 +289,7 @@ static void
 print (const char * name)
 {
   FILE * file = fopen (name, "w");
-  int i, j, lit, idx;
+  int i, j, lit;
 
   if (!file)
     die ("can not write to '%s'", name);
@@ -266,18 +298,14 @@ print (const char * name)
 
   for (i = 0; i < size_clauses; i++)
     {
-      if (!clauses[i])
+      if (clausesatisfied (i))
 	continue;
 
       j = 0;
-      while ((lit = clauses[i][j++]))
+      while ((lit = deref (clauses[i][j++])))
 	{
-	  if (lit == INT_MAX)
+	  if (lit == FALSE)
 	    continue;
-
-	  idx = abs (lit);
-	  idx = movedto[idx];
-	  lit = (lit < 0) ? -idx : idx;
 
 	  fprintf (file, "%d ", lit);
 	}
@@ -314,6 +342,93 @@ erase (void)
   for (i = 0; i < 79; i++)
     fputc (' ', stderr);
   fputc ('\r', stderr);
+}
+
+static void
+assign (void)
+{
+  int i, j, width, assigned, total, end, found;
+  int bytes = (maxidx + 1) * sizeof (int);
+  int * saved = malloc (bytes);
+
+  width = maxidx;
+  while (width)
+    {
+      if (!isatty (2))
+	msg ("assign(%d) width %d", round, width);
+
+      i = 1;
+
+      do {
+
+	if (isatty (2))
+	  {
+	    fprintf (stderr,
+		     "[cnfdd] assign(%d) width %d completed %d/%d\r", 
+		     round, width, i, maxidx);
+
+	    fflush (stderr);
+	  }
+
+	end = i + width;
+	if (end > maxidx)
+	  end = maxidx + 1;
+
+	found = 0;
+	for (j = i; j < end; j++)
+	  {
+	    if (abs (movedto[j]) != TRUE)
+	      {
+		found++;
+		saved[j] = movedto[j];
+		movedto[j] = TRUE;
+	      }
+	    else
+	      saved[j] = 0;
+	  }
+
+	if (found)
+	  {
+	    print (tmp);
+	    if (run (tmp) == expected)
+	      {
+		for (j = i; j < end; j++)
+		  {
+		    if (saved[j])
+		      {
+			total++;
+			assigned++;
+		      }
+		  }
+	      }
+	    else
+	      {
+		for (j = i; j < end; j++)
+		  if (saved[j])
+		    movedto[j] = saved[j];
+	      }
+	  }
+
+	i = end;
+
+      } while (i <= maxidx);
+
+      if (isatty (2))
+	erase ();
+
+      msg ("assign(%d) width %d assigend %d variables",
+	   round, width, assigned);
+
+      if (assigned)
+	save ();
+
+      if (assigned && thorough)
+	width = size_clauses;
+      else
+	width /= 2;
+    }
+
+  free (saved);
 }
 
 static void
@@ -585,6 +700,8 @@ main (int argc, char ** argv)
     {
       changed = 0;
       reduce ();
+      move ();
+      assign ();
       move ();
       shrink ();
       move ();
