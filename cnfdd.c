@@ -5,6 +5,7 @@
   "\n" \
   "  -h    print this command line option summary\n" \
   "  -t    thorough mode, e.g. iterate same widths multiple times\n" \
+  "  -a    use experimental assign phase\n" \
   "\n" \
   "  src   file name of an existing CNF in DIMACS format\n" \
   "  dst   file name of generated minimized CNF\n" \
@@ -42,6 +43,7 @@ static int round;
 static int changed;
 static int calls;
 static int thorough;
+static int assignvars;
 
 static void
 die (const char * fmt, ...)
@@ -665,6 +667,8 @@ main (int argc, char ** argv)
 	}
       else if (!cmd && !strcmp (argv[i], "-t"))
 	thorough = 1;
+      else if (!cmd && !strcmp (argv[i], "-a"))
+	assignvars = 1;
       else if (!cmd && argv[i][0] == '-')
 	die ("invalid command line option '%s'", argv[i]);
       else if (cmd)
@@ -699,8 +703,11 @@ main (int argc, char ** argv)
     {
       changed = 0;
       reduce ();
-      move ();
-      assign ();
+      if (assignvars)
+	{
+	  move ();
+	  assign ();
+	}
       move ();
       shrink ();
       move ();
