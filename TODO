@@ -3,3 +3,5 @@
   before clause removal
 
 - try to interleave failed literals and clause removal
+
+- isolate mode

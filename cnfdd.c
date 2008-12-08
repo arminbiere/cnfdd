@@ -5,6 +5,7 @@
   "\n" \
   "  -h    print this command line option summary\n" \
   "  -t    thorough mode, e.g. iterate same widths multiple times\n" \
+  "  -i    isolate instead of miminize\n" \
   "\n" \
   "  src   file name of an existing CNF in DIMACS format\n" \
   "  dst   file name of generated minimized CNF\n" \
