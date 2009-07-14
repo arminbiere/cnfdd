@@ -5,7 +5,6 @@
   "\n" \
   "  -h    print this command line option summary\n" \
   "  -t    thorough mode, e.g. iterate same widths multiple times\n" \
-  "  -a    use experimental assign phase\n" \
   "\n" \
   "  src   file name of an existing CNF in DIMACS format\n" \
   "  dst   file name of generated minimized CNF\n" \
@@ -43,7 +42,6 @@ static int round;
 static int changed;
 static int calls;
 static int thorough;
-static int assignvars;
 
 static void
 die (const char * fmt, ...)
@@ -346,93 +344,6 @@ erase (void)
 }
 
 static void
-assign (void)
-{
-  int i, j, width, assigned, total, end, found;
-  int bytes = (maxidx + 1) * sizeof (int);
-  int * saved = malloc (bytes);
-
-  width = maxidx;
-  while (width)
-    {
-      if (!isatty (2))
-	msg ("assign(%d) width %d", round, width);
-
-      i = 1;
-
-      do {
-
-	if (isatty (2))
-	  {
-	    fprintf (stderr,
-		     "[cnfdd] assign(%d) width %d completed %d/%d\r", 
-		     round, width, i, maxidx);
-
-	    fflush (stderr);
-	  }
-
-	end = i + width;
-	if (end > maxidx)
-	  end = maxidx + 1;
-
-	found = 0;
-	for (j = i; j < end; j++)
-	  {
-	    if (abs (movedto[j]) != TRUE)
-	      {
-		found++;
-		saved[j] = movedto[j];
-		movedto[j] = TRUE;
-	      }
-	    else
-	      saved[j] = 0;
-	  }
-
-	if (found)
-	  {
-	    print (tmp);
-	    if (run (tmp) == expected)
-	      {
-		for (j = i; j < end; j++)
-		  {
-		    if (saved[j])
-		      {
-			total++;
-			assigned++;
-		      }
-		  }
-	      }
-	    else
-	      {
-		for (j = i; j < end; j++)
-		  if (saved[j])
-		    movedto[j] = saved[j];
-	      }
-	  }
-
-	i = end;
-
-      } while (i <= maxidx);
-
-      if (isatty (2))
-	erase ();
-
-      msg ("assign(%d) width %d assigend %d variables",
-	   round, width, assigned);
-
-      if (assigned)
-	save ();
-
-      if (assigned && thorough)
-	width = size_clauses;
-      else
-	width /= 2;
-    }
-
-  free (saved);
-}
-
-static void
 reduce (void)
 {
   int bytes = size_clauses * sizeof (int);
@@ -667,8 +578,6 @@ main (int argc, char ** argv)
 	}
       else if (!cmd && !strcmp (argv[i], "-t"))
 	thorough = 1;
-      else if (!cmd && !strcmp (argv[i], "-a"))
-	assignvars = 1;
       else if (!cmd && argv[i][0] == '-')
 	die ("invalid command line option '%s'", argv[i]);
       else if (cmd)
@@ -703,11 +612,6 @@ main (int argc, char ** argv)
     {
       changed = 0;
       reduce ();
-      if (assignvars)
-	{
-	  move ();
-	  assign ();
-	}
       move ();
       shrink ();
       move ();
