@@ -542,10 +542,10 @@ shrink (void)
 
       for (j = 0; (lit = clauses[i][j]); j++)
 	{
-	  if (lit == INT_MAX)
+	  if (lit == FALSE)
 	    continue;
 
-	  clauses[i][j] = INT_MAX;
+	  clauses[i][j] = FALSE;
 	  print (tmp);
 	  if (run (tmp) == expected)
 	    removed++;
