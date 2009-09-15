@@ -426,8 +426,9 @@ reduce (void)
 
       if (removed && thorough)
 	width = size_clauses;
-      else
-	width /= 2;
+      else if (width > 1)
+	width = (width+1)/2;
+      else width = 0;
 
       j = 0;
       for (i = 0; i < size_clauses; i++)
