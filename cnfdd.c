@@ -366,7 +366,7 @@ reduce (void)
 	if (isatty (2))
 	  {
 	    fprintf (stderr,
-	      "[cnfdd] reduce(%d) width %d removed %d, completed %d/%d\r", 
+	      "[cnfdd] reduce(%d) width %d removed %d completed %d/%d\r", 
 	      round, width, removed, i, size_clauses);
 
 	    fflush (stderr);
