@@ -366,8 +366,8 @@ reduce (void)
 	if (isatty (2))
 	  {
 	    fprintf (stderr,
-		     "[cnfdd] reduce(%d) width %d completed %d/%d\r", 
-		     round, width, i, size_clauses);
+	      "[cnfdd] reduce(%d) width %d removed %d, completed %d/%d\r", 
+	      round, width, removed, i, size_clauses);
 
 	    fflush (stderr);
 	  }
@@ -468,8 +468,8 @@ shrink (void)
       if (isatty (2))
 	{
 	  fprintf (stderr,
-		   "[cnfdd] shrink(%d) completed %d/%d\r", 
-		   round, i, size_clauses);
+		   "[cnfdd] shrink(%d) removed %d completed %d/%d\r", 
+		   round, removed, i, size_clauses);
 
 	  fflush (stderr);
 	}
