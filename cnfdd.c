@@ -3,12 +3,13 @@
 #define USAGE \
   "usage: cnfdd [-h|-t] src dst cmd [<cmdopt> ...]\n" \
   "\n" \
-  "  -h    print this command line option summary\n" \
-  "  -t    thorough mode, e.g. iterate same widths multiple times\n" \
+  "  -h     print this command line option summary\n" \
+  "  -t     thorough mode, e.g. iterate same widths multiple times\n" \
+  "  -e <e> set expected exit code to <e>\n" \
   "\n" \
-  "  src   file name of an existing CNF in DIMACS format\n" \
-  "  dst   file name of generated minimized CNF\n" \
-  "  cmd   command to debug (expects a CNF file as argument)\n" \
+  "  src    file name of an existing CNF in DIMACS format\n" \
+  "  dst    file name of generated minimized CNF\n" \
+  "  cmd    command to debug (expects a CNF file as argument)\n" \
   "\n" \
   "The delta debugger copies 'src' to 'dst' and tries to remove\n" \
   "as many clauses and literals without changing the exit code\n" \
@@ -23,6 +24,7 @@
 #include <ctype.h>
 #include <limits.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #define TRUE INT_MAX
@@ -211,7 +213,7 @@ run (const char * name)
    * output through adding appropriate command line options.
    */
   sprintf (buffer, "exec %s %s 1>/dev/null 2>/dev/null", cmd, name);
-  res = system (buffer);
+  res = WEXITSTATUS(system (buffer));
   free (buffer);
   return res;
 }
@@ -316,11 +318,12 @@ print (const char * name)
 }
 
 static void
-setup (void)
+setup (int compute_expected)
 {
   msg ("copied '%s' to '%s'", src, dst);
   print (dst);
-  expected = run (dst);
+  if (compute_expected)
+    expected = run (dst);
   msg ("expected exit code is %d", expected);
   sprintf (tmp, "/tmp/cnfdd-%u", (unsigned) getpid ());
 }
@@ -569,6 +572,7 @@ int
 main (int argc, char ** argv)
 {
   int i;
+  int compute_expected = 1;
 
   for (i = 1; i < argc; i++)
     {
@@ -579,6 +583,14 @@ main (int argc, char ** argv)
 	}
       else if (!cmd && !strcmp (argv[i], "-t"))
 	thorough = 1;
+      else if (!cmd && !strcmp (argv[i], "-e"))
+        {
+          if (i == argc - 1)
+            die ("expected exit code missing");
+          i++;
+          expected = atoi (argv[i]);
+          compute_expected = 0;
+        }
       else if (!cmd && argv[i][0] == '-')
 	die ("invalid command line option '%s'", argv[i]);
       else if (cmd)
@@ -606,7 +618,7 @@ main (int argc, char ** argv)
     die ("'cmd' missing");
 
   parse ();
-  setup ();
+  setup (compute_expected);
 
   changed = 1;
   for (round = 1; changed; round++)
