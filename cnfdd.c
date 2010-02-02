@@ -213,7 +213,7 @@ run (const char * name)
    * output through adding appropriate command line options.
    */
   sprintf (buffer, "exec %s %s 1>/dev/null 2>/dev/null", cmd, name);
-  res = WEXITSTATUS(system (buffer));
+  res = system (buffer);
   free (buffer);
   return res;
 }
@@ -324,7 +324,7 @@ setup (int compute_expected)
   print (dst);
   if (compute_expected)
     expected = run (dst);
-  msg ("expected exit code is %d", expected);
+  msg ("expected exit code is %d", WEXITSTATUS(expected));
   sprintf (tmp, "/tmp/cnfdd-%u", (unsigned) getpid ());
 }
 
