@@ -46,6 +46,10 @@ static int changed;
 static int calls;
 static int thorough;
 static int masksignals;
+static char ** options;
+static int * values;
+static int szopts;
+static int nopts;
 
 static void
 die (const char * fmt, ...)
@@ -78,8 +82,9 @@ static void
 parse (void)
 {
   int i, ch, * clause, lit, sign, size_clause, count_clause, count_clauses;
+  int zipped, val, szbuf = 0, nbuf = 0;
+  char * buffer = 0;
   FILE * file;
-  int zipped;
  
   if (strlen (src) > 3 && !strcmp (src + strlen (src) - 3, ".gz"))
     {
@@ -107,10 +112,50 @@ SKIP:
 
   if (ch == 'c')
     {
-      while ((ch = getc (file)) != '\n' && ch != EOF)
-	;
+      ch = getc (file);
+      while (ch != '\n' && ch != EOF) {
+	if (ch != '-') { ch = getc (file); continue; }
+	ch = getc (file);
+	if (ch == '-') {
+	  nbuf = 0;
+	  ch = getc (file);
+	  while (isalnum (ch) || ch == '-' || ch == '_') {
+	    if (nbuf + 1 >= szbuf)
+	      buffer = realloc (buffer, szbuf = szbuf ? 2*szbuf : 2);
+	    buffer[nbuf++] = ch;
+	    buffer[nbuf] = 0;
+	    ch = getc (file);
+	  }
+	  if (ch == '=') {
+	    ch = getc (file);
+	    if (ch == '-') { sign = -1; ch = getc (file); } else sign = 1;
+	    if (isdigit (ch)) {
+	      val = ch - '0';
+	      ch = getc (file);
+	      while (isdigit (ch)) {
+		val = 10 * val + (ch - '0');
+		ch = getc (file);
+	      }
+
+	      val *= sign;
+	      msg ("parsed embedded option: --%s=%d", buffer, val);
+
+	      if (nopts >= szopts) {
+		szopts = szopts ? 2 * szopts : 1;
+		options = realloc (options, szopts * sizeof *options);
+		values = realloc (values, szopts * sizeof *values);
+	      }
+	      options[nopts] = strdup (buffer);
+	      values[nopts] = val;
+	      nopts++;
+	    }
+	  }
+	}
+      }
       goto SKIP;
     }
+
+  free (buffer);
 
   if (ch != 'p' || fscanf (file, " cnf %d %d", &maxidx, &size_clauses) != 2)
     die ("expected 'p cnf ...' header");
@@ -304,6 +349,9 @@ print (const char * name)
 
   if (!file)
     die ("can not write to '%s'", name);
+
+  for (i = 0; i < nopts; i++)
+    fprintf (file, "c --%s=%d\n", options[i], values[i]);
 
   fprintf (file, "p cnf %d %d\n", keptvariables (), keptclauses ());
 
@@ -576,6 +624,9 @@ reset (void)
   free (clauses);
   free (movedto);
   free (cmd);
+  for (i = 0; i < nopts; i++)
+    free (options[i]);
+  free (options);
   unlink (tmp);
 }
 
