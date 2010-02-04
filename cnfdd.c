@@ -5,6 +5,7 @@
   "\n" \
   "  -h     print this command line option summary\n" \
   "  -t     thorough mode, e.g. iterate same widths multiple times\n" \
+  "  -m     mask out signals from exit code\n" \
   "  -e <e> set expected exit code to <e>\n" \
   "\n" \
   "  src    file name of an existing CNF in DIMACS format\n" \
@@ -44,6 +45,7 @@ static int round;
 static int changed;
 static int calls;
 static int thorough;
+static int masksignals;
 
 static void
 die (const char * fmt, ...)
@@ -197,6 +199,14 @@ NEXT:
 }
 
 static int
+maskstatus (int status)
+{
+  int res = status;
+  if (masksignals) res = WEXITSTATUS (res);
+  return res;
+}
+
+static int
 run (const char * name)
 {
   char * buffer = malloc (strlen (cmd) + strlen (name) + 100);
@@ -213,7 +223,7 @@ run (const char * name)
    * output through adding appropriate command line options.
    */
   sprintf (buffer, "exec %s %s 1>/dev/null 2>/dev/null", cmd, name);
-  res = WEXITSTATUS(system (buffer));
+  res = maskstatus (system (buffer));
   free (buffer);
   return res;
 }
@@ -324,7 +334,8 @@ setup (int compute_expected)
   print (dst);
   if (compute_expected)
     expected = run (dst);
-  msg ("expected exit code is %d", expected);
+  msg ("expected exit code %s masking out signals is %d", 
+       masksignals ? "after" : "without", expected);
   sprintf (tmp, "/tmp/cnfdd-%u", (unsigned) getpid ());
 }
 
