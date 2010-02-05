@@ -1,4 +1,4 @@
-/* Copyright (c) 2006 - 2008, Armin Biere, Johannes Kepler University. */
+/* Copyright (c) 2006 - 2010, Armin Biere, Johannes Kepler University. */
 
 #define USAGE \
   "usage: cnfdd [-h|-t] src dst cmd [<cmdopt> ...]\n" \
@@ -15,7 +15,12 @@
   "The delta debugger copies 'src' to 'dst' and tries to remove\n" \
   "as many clauses and literals without changing the exit code\n" \
   "of 'cmd dst'.  Then unused variables are removed, as long the\n" \
-  "exit code does not change.\n"
+  "exit code does not change.\n" \
+  "\n" \
+  "Comments before the header are scanned for option value pairs\n" \
+  "of the form '--<option-name>=<integer-value>'.  These are kept\n" \
+  "in the reduced and intermediate files as well.  We will try to\n" \
+  "delta debug those in future versions as well.\n"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -113,45 +118,63 @@ SKIP:
   if (ch == 'c')
     {
       ch = getc (file);
-      while (ch != '\n' && ch != EOF) {
-	if (ch != '-') { ch = getc (file); continue; }
-	ch = getc (file);
-	if (ch == '-') {
-	  nbuf = 0;
-	  ch = getc (file);
-	  while (isalnum (ch) || ch == '-' || ch == '_') {
-	    if (nbuf + 1 >= szbuf)
-	      buffer = realloc (buffer, szbuf = szbuf ? 2*szbuf : 2);
-	    buffer[nbuf++] = ch;
-	    buffer[nbuf] = 0;
-	    ch = getc (file);
-	  }
-	  if (ch == '=') {
-	    ch = getc (file);
-	    if (ch == '-') { sign = -1; ch = getc (file); } else sign = 1;
-	    if (isdigit (ch)) {
-	      val = ch - '0';
+      while (ch != '\n' && ch != EOF) 
+	{
+	  if (ch != '-') 
+	    {
 	      ch = getc (file);
-	      while (isdigit (ch)) {
-		val = 10 * val + (ch - '0');
-		ch = getc (file);
-	      }
-
-	      val *= sign;
-	      msg ("parsed embedded option: --%s=%d", buffer, val);
-
-	      if (nopts >= szopts) {
-		szopts = szopts ? 2 * szopts : 1;
-		options = realloc (options, szopts * sizeof *options);
-		values = realloc (values, szopts * sizeof *values);
-	      }
-	      options[nopts] = strdup (buffer);
-	      values[nopts] = val;
-	      nopts++;
+	      continue;
 	    }
-	  }
+	  ch = getc (file);
+	  if (ch == '-') 
+	    {
+	      nbuf = 0;
+	      ch = getc (file);
+	      while (isalnum (ch) || ch == '-' || ch == '_') 
+		{
+		  if (nbuf + 1 >= szbuf)
+		    buffer = realloc (buffer, szbuf = szbuf ? 2*szbuf : 2);
+		  buffer[nbuf++] = ch;
+		  buffer[nbuf] = 0;
+		  ch = getc (file);
+		}
+	      if (ch == '=') 
+		{
+		  ch = getc (file);
+		  if (ch == '-') 
+		    { 
+		      sign = -1;
+		      ch = getc (file);
+		    }
+		  else
+		     sign = 1;
+		  if (isdigit (ch)) 
+		    {
+		      val = ch - '0';
+		      ch = getc (file);
+		      while (isdigit (ch)) 
+			{
+			  val = 10 * val + (ch - '0');
+			  ch = getc (file);
+			}
+
+		      val *= sign;
+		      msg ("parsed embedded option: --%s=%d", buffer, val);
+
+		      if (nopts >= szopts) 
+			{
+			  szopts = szopts ? 2 * szopts : 1;
+			  options =
+			    realloc (options, szopts * sizeof *options);
+			  values = realloc (values, szopts * sizeof *values);
+			}
+		      options[nopts] = strdup (buffer);
+		      values[nopts] = val;
+		      nopts++;
+		    }
+		}
+	    }
 	}
-      }
       goto SKIP;
     }
 
