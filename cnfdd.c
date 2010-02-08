@@ -668,6 +668,8 @@ main (int argc, char ** argv)
 	}
       else if (!cmd && !strcmp (argv[i], "-t"))
 	thorough = 1;
+      else if (!strcmp (argv[i], "-m"))
+	masksignals = 1;
       else if (!cmd && !strcmp (argv[i], "-e"))
         {
           if (i == argc - 1)
