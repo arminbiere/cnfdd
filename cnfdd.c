@@ -406,7 +406,7 @@ setup (int compute_expected)
   print (dst);
   if (compute_expected)
     expected = run (dst);
-  msg ("expected exit code %s masking out signals is %d", 
+  msg ("expected exit code %s masking out signals is %d",
        masksignals ? "after" : "without", expected);
   sprintf (tmp, "/tmp/cnfdd-%u", (unsigned) getpid ());
 }
@@ -452,7 +452,7 @@ reduce (void)
 	if (isatty (2))
 	  {
 	    fprintf (stderr,
-	      "[cnfdd] reduce(%d) width %d removed %d completed %d/%d\r", 
+	      "[cnfdd] reduce(%d) width %d removed %d completed %d/%d\r",
 	      round, width, removed, i, size_clauses);
 
 	    fflush (stderr);
@@ -554,7 +554,7 @@ shrink (void)
       if (isatty (2))
 	{
 	  fprintf (stderr,
-		   "[cnfdd] shrink(%d) removed %d completed %d/%d\r", 
+		   "[cnfdd] shrink(%d) removed %d completed %d/%d\r",
 		   round, removed, i, size_clauses);
 
 	  fflush (stderr);
@@ -642,15 +642,34 @@ move (void)
 static void
 opts (void)
 {
-  int i, val, removed, reduced, reductions, once;
+  int i, val, removed, reduced, reductions, once, c, n;
   char * opt;
 
-  removed = 0;
+  n = 0;
+  for (i = 0; i < nopts; i++) 
+    if (options[i])
+      n++;
 
+  c = removed = 0;
   for (i = 0; i < nopts; i++) 
     {
+      if (!options[i])
+	continue;
+
+      c++;
+
+      if (isatty (2))
+	{
+	  fprintf (stderr,
+		   "[cnfdd] opts(%d) removed %d completed %d/%d\r",
+		   round, removed, c, n);
+
+	  fflush (stderr);
+	}
+
       opt = options[i];
       options[i] = 0;
+      print (tmp);
       if (run (tmp) == expected) 
 	{
 	  removed++;
@@ -660,22 +679,41 @@ opts (void)
 	options[i] = opt;
     }
 
+  if (isatty (2))
+    erase ();
+
   if (removed) 
     {
-      msg ("removed %d options", removed);
+      msg ("opts(%d) removed %d options", round, removed);
       save ();
     }
 
+  c = 0;
+  n -= removed;
   reductions = reduced = 0;
 
   for (i = 0; i < nopts; i++) 
     {
+      if (!options[i])
+	continue;
+
+      if (isatty (2))
+	{
+	  fprintf (stderr,
+		   "[cnfdd] opts(%d) "
+		   "reduced %d completed %d/%d in %d reductions\r",
+		   round, reduced, c, n, reductions);
+
+	  fflush (stderr);
+	}
+
       once = 0;
       for (;;)
 	{
 	  val = values[i];
 	  if (!val) break;
 	  values[i] /= 2;
+	  print (tmp);
 	  if (run (tmp) != expected)
 	    {
 	      values[i] = val;
@@ -693,6 +731,7 @@ opts (void)
 	  val = values[i];
 	  if (abs (val) <= 1) break;
 	  values[i]--;
+	  print (tmp);
 	  if (run (tmp) != expected)
 	    {
 	      values[i] = val;
@@ -710,10 +749,17 @@ opts (void)
 	  reduced++;
 	  save ();
 	}
+
+      if (isatty (2))
+	erase ();
     }
 
+  if (isatty (2))
+    erase ();
+
   if (reduced)
-    msg ("reduced %d option values in %d reductions", reduced, reductions);
+    msg ("opts(%d) reduced %d option values in %d reductions",
+         round,  reduced, reductions);
 }
 
 static void
