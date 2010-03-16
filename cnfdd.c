@@ -660,8 +660,11 @@ opts (void)
 	options[i] = opt;
     }
 
-  if (removed)
-    msg ("removed %d options", removed);
+  if (removed) 
+    {
+      msg ("removed %d options", removed);
+      save ();
+    }
 
   reductions = reduced = 0;
 
@@ -702,7 +705,11 @@ opts (void)
 	    }
 	}
 
-      if (once) reduced++;
+      if (once) 
+	{
+	  reduced++;
+	  save ();
+	}
     }
 
   if (reduced)
