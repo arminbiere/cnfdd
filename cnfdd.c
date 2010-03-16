@@ -374,7 +374,8 @@ print (const char * name)
     die ("can not write to '%s'", name);
 
   for (i = 0; i < nopts; i++)
-    fprintf (file, "c --%s=%d\n", options[i], values[i]);
+    if (options[i])
+      fprintf (file, "c --%s=%d\n", options[i], values[i]);
 
   fprintf (file, "p cnf %d %d\n", keptvariables (), keptclauses ());
 
@@ -639,6 +640,76 @@ move (void)
 }
 
 static void
+opts (void)
+{
+  int i, val, removed, reduced, reductions, once;
+  char * opt;
+
+  removed = 0;
+
+  for (i = 0; i < nopts; i++) 
+    {
+      opt = options[i];
+      options[i] = 0;
+      if (run (tmp) == expected) 
+	{
+	  removed++;
+	  free (opt);
+	}
+      else
+	options[i] = opt;
+    }
+
+  if (removed)
+    msg ("removed %d options", removed);
+
+  reductions = reduced = 0;
+
+  for (i = 0; i < nopts; i++) 
+    {
+      once = 0;
+      for (;;)
+	{
+	  val = values[i];
+	  if (!val) break;
+	  values[i] /= 2;
+	  if (run (tmp) != expected)
+	    {
+	      values[i] = val;
+	      break;
+	    }
+	  else
+	    {
+	      once = 1;
+	      reductions++;
+	    }
+	}
+
+      for (;;)
+	{
+	  val = values[i];
+	  if (abs (val) <= 1) break;
+	  values[i]--;
+	  if (run (tmp) != expected)
+	    {
+	      values[i] = val;
+	      break;
+	    }
+	  else
+	    {
+	      once = 1;
+	      reductions++;
+	    }
+	}
+
+      if (once) reduced++;
+    }
+
+  if (reduced)
+    msg ("reduced %d option values in %d reductions", reduced, reductions);
+}
+
+static void
 reset (void)
 {
   int i;
@@ -715,6 +786,7 @@ main (int argc, char ** argv)
       move ();
       shrink ();
       move ();
+      opts ();
     }
 
   msg ("called '%s' %d times", cmd, calls);
