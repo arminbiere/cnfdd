@@ -744,14 +744,14 @@ opts (void)
 	    }
 	}
 
+      if (isatty (2))
+	erase ();
+
       if (once) 
 	{
 	  reduced++;
 	  save ();
 	}
-
-      if (isatty (2))
-	erase ();
     }
 
   if (isatty (2))
