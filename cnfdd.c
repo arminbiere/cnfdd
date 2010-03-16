@@ -6,6 +6,7 @@
   "  -h     print this command line option summary\n" \
   "  -t     thorough mode, e.g. iterate same widths multiple times\n" \
   "  -m     mask out signals from exit code\n" \
+  "  -r     remove options\n" \
   "  -e <e> set expected exit code to <e>\n" \
   "\n" \
   "  src    file name of an existing CNF in DIMACS format\n" \
@@ -51,6 +52,7 @@ static int changed;
 static int calls;
 static int thorough;
 static int masksignals;
+static int removeopts;
 static char ** options;
 static int * values;
 static int szopts;
@@ -650,42 +652,46 @@ opts (void)
     if (options[i])
       n++;
 
-  c = removed = 0;
-  for (i = 0; i < nopts; i++) 
+  removed = 0;
+  if (removeopts)
     {
-      if (!options[i])
-	continue;
+      c = 0;
+      for (i = 0; i < nopts; i++) 
+	{
+	  if (!options[i])
+	    continue;
 
-      c++;
+	  c++;
+
+	  if (isatty (2))
+	    {
+	      fprintf (stderr,
+		       "[cnfdd] opts(%d) removed %d completed %d/%d\r",
+		       round, removed, c, n);
+
+	      fflush (stderr);
+	    }
+
+	  opt = options[i];
+	  options[i] = 0;
+	  print (tmp);
+	  if (run (tmp) == expected) 
+	    {
+	      removed++;
+	      free (opt);
+	    }
+	  else
+	    options[i] = opt;
+	}
 
       if (isatty (2))
+	erase ();
+
+      if (removed) 
 	{
-	  fprintf (stderr,
-		   "[cnfdd] opts(%d) removed %d completed %d/%d\r",
-		   round, removed, c, n);
-
-	  fflush (stderr);
+	  msg ("opts(%d) removed %d options", round, removed);
+	  save ();
 	}
-
-      opt = options[i];
-      options[i] = 0;
-      print (tmp);
-      if (run (tmp) == expected) 
-	{
-	  removed++;
-	  free (opt);
-	}
-      else
-	options[i] = opt;
-    }
-
-  if (isatty (2))
-    erase ();
-
-  if (removed) 
-    {
-      msg ("opts(%d) removed %d options", round, removed);
-      save ();
     }
 
   c = 0;
@@ -792,6 +798,8 @@ main (int argc, char ** argv)
 	}
       else if (!cmd && !strcmp (argv[i], "-t"))
 	thorough = 1;
+      else if (!cmd && !strcmp (argv[i], "-r"))
+	removeopts = 1;
       else if (!strcmp (argv[i], "-m"))
 	masksignals = 1;
       else if (!cmd && !strcmp (argv[i], "-e"))
