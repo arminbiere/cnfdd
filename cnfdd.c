@@ -754,14 +754,14 @@ opts (void)
 	erase ();
 
       if (once) 
-	{
-	  reduced++;
-	  save ();
-	}
+	reduced++;
     }
 
   if (isatty (2))
     erase ();
+
+  if (reduced)
+    save ();
 
   if (reduced)
     msg ("opts(%d) reduced %d option values in %d reductions",
