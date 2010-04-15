@@ -736,7 +736,7 @@ opts (void)
 	{
 	  val = values[i];
 	  if (val > 1) values[i]--;
-	  else if (val < 1) values[i]++;
+	  else if (val < -1) values[i]++;
 	  else break;
 	  print (tmp);
 	  if (run (tmp) != expected)
