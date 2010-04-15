@@ -720,7 +720,8 @@ opts (void)
 	  val = values[i];
 	  delta = val / (1 << shift);
 	  if (!delta) break;
-	  values[i] += delta;
+	  assert (abs (delta) < abs (val));
+	  values[i] -= delta;
 	  print (tmp);
 	  if (run (tmp) != expected)
 	    {
