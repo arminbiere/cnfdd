@@ -644,7 +644,7 @@ move (void)
 static void
 opts (void)
 {
-  int i, val, removed, reduced, reductions, once, c, n;
+  int i, val, removed, reduced, reductions, once, c, n, shift, delta;
   char * opt;
 
   n = 0;
@@ -713,17 +713,19 @@ opts (void)
 	  fflush (stderr);
 	}
 
+      shift = 1;
       once = 0;
       for (;;)
 	{
 	  val = values[i];
-	  if (!val) break;
-	  values[i] /= 2;
+	  delta = val / (1 << shift);
+	  if (!delta) break;
+	  values[i] += delta;
 	  print (tmp);
 	  if (run (tmp) != expected)
 	    {
 	      values[i] = val;
-	      break;
+	      shift++;
 	    }
 	  else
 	    {
@@ -735,8 +737,8 @@ opts (void)
       for (;;)
 	{
 	  val = values[i];
-	  if (val > 1) values[i]--;
-	  else if (val < -1) values[i]++;
+	  if (val > 0) values[i]--;
+	  else if (val < 0) values[i]++;
 	  else break;
 	  print (tmp);
 	  if (run (tmp) != expected)
