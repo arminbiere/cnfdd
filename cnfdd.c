@@ -735,8 +735,9 @@ opts (void)
       for (;;)
 	{
 	  val = values[i];
-	  if (abs (val) <= 1) break;
-	  values[i]--;
+	  if (val > 1) values[i]--;
+	  else if (val < 1) values[i]++;
+	  else break;
 	  print (tmp);
 	  if (run (tmp) != expected)
 	    {
