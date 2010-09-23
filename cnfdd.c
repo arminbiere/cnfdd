@@ -49,6 +49,7 @@ static int quantify;
 static int ** clauses;
 static int size_clauses;
 static int maxidx;
+static char * used;
 static int * movedto;
 static int expected;
 static char tmp[100];
@@ -194,6 +195,8 @@ SKIP:
   for (i = 1; i <= maxidx; i++)
     movedto[i] = i;
 
+  used = calloc (maxidx + 1, sizeof * used);
+
   clauses = malloc (size_clauses * sizeof (clauses[0]));
 
   clause = 0;
@@ -210,12 +213,13 @@ NEXT:
       if (count_clauses)
 	die ("quantifier after clause");
 
-      if (!quantifier)
-	{
-	  assert (!qbf);
-	  qbf = calloc (maxidx + 1, sizeof *qbf);
+      if (quantifier)
+	die ("'0' after quantifier missing");
 
+      if (!qbf)
+	{
 	  assert (!prefix);
+	  qbf = calloc (maxidx + 1, sizeof *qbf);
 	  prefix = malloc (maxidx * sizeof *prefix);
 	}
       else
@@ -226,6 +230,8 @@ NEXT:
 
       if (ch == 'a')
 	quantifier = -1;
+
+      goto NEXT;
     }
 
   if (ch == 'c')
@@ -257,16 +263,7 @@ NEXT:
       while (isdigit (ch = getc (file)))
 	lit = 10 * lit + (ch - '0');
 
-      if (quantifier)
-	{
-	  assert (sign == 1);
-	  if (qbf[lit])
-	    die ("variable %d quantified twice", lit);
-
-	  prefix[quantified++] = quantifier * lit;
-	  qbf[lit] = quantifier * abs (quantified);
-	}
-      else
+      if (!quantifier)
 	{
 	  lit *= sign;
 
@@ -288,6 +285,17 @@ NEXT:
 	      clause = 0;
 	    }
 	}
+      else if (lit)
+	{
+	  assert (sign == 1);
+	  if (qbf[lit])
+	    die ("variable %d quantified twice", lit);
+
+	  prefix[quantified++] = quantifier * lit;
+	  qbf[lit] = quantifier * abs (quantified);
+	}
+      else
+	quantifier = 0;
 
       goto NEXT;
     }
@@ -422,6 +430,26 @@ sgn (int lit)
 }
 
 static void
+collect (void) 
+{
+  int i, j, idx;
+
+  for (i = 1; i <= maxidx; i++)
+    used[i] = 0;
+
+  for (i = 0; i < size_clauses; i++)
+    {
+      if (!clauses[i])
+	continue;
+
+      j = 0;
+      while ((idx = abs (clauses[i][j++])))
+	if (idx != INT_MAX)
+	  used[idx] = 1;
+    }
+}
+
+static void
 print (const char * name)
 {
   FILE * file = fopen (name, "w");
@@ -436,13 +464,15 @@ print (const char * name)
 
   fprintf (file, "p cnf %d %d\n", keptvariables (), keptclauses ());
 
+  collect ();
+
   if (qbf)
     {
       quantifier = 0;
       if (quantify)
 	for (i = 1; i <= maxidx; i++) 
 	  {
-	    if (deref (i) == FALSE)
+	    if (!used[i])
 	      continue;
 
 	    if (qbf[i])
@@ -451,36 +481,40 @@ print (const char * name)
 	    if (!quantifier)
 	      {
 		quantifier = -1;
-		printf ("e");
+		fprintf (file, "e");
 	      }
 
-	    printf (" %d", i);
+	    fprintf (file, " %d", i);
 	  }
 
       for (i = 0; i < quantified; i++) 
 	{
 	  lit = prefix[i];
+
+	  if (!used[ abs (lit)])
+	    continue;
+
 	  if (sgn (lit) != quantifier)
 	    {
 	      if (quantifier)
-		printf (" 0\n");
+		fprintf (file, " 0\n");
 
 	      if (lit < 0)
 		{
 		  quantifier = -1;
-		  printf ("a");
+		  fprintf (file, "a");
 		}
 	      else
 		{
 		  quantifier = 1;
-		  printf ("e");
+		  fprintf (file, "e");
 		}
 	    }
-	  printf (" %d", abs (lit));
+	  fprintf (file, " %d", deref (abs (lit)));
 	}
 
       if (quantifier)
-	printf (" 0\n");
+	fprintf (file, " 0\n");
     }
 
   for (i = 0; i < size_clauses; i++)
@@ -677,22 +711,9 @@ shrink (void)
 static void
 move (void)
 {
-  char * used = malloc (maxidx + 1);
-  int i, j, idx, count, * saved, movedtomaxidx, moved;
+  int i, j, count, * saved, movedtomaxidx, moved;
 
-  for (i = 1; i <= maxidx; i++)
-    used[i] = 0;
-
-  for (i = 0; i < size_clauses; i++)
-    {
-      if (!clauses[i])
-	continue;
-
-      j = 0;
-      while ((idx = abs (clauses[i][j++])))
-	if (idx != INT_MAX)
-	  used[idx] = 1;
-    }
+  collect ();
 
   movedtomaxidx = 0;
   count = 0;
@@ -733,8 +754,6 @@ move (void)
 
       free (saved);
     }
-
-  free (used);
 
   if (moved)
     {
@@ -882,6 +901,7 @@ reset (void)
     free (clauses[i]);
   free (clauses);
   free (movedto);
+  free (used);
   free (qbf);
   free (prefix);
   free (cmd);
