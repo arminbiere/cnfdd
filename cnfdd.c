@@ -6,6 +6,7 @@
   "  -h     print this command line option summary\n" \
   "  -t     thorough mode, e.g. iterate same widths multiple times\n" \
   "  -m     mask out signals from exit code\n" \
+  "  -q     quantify explicitly even outer-most existential variables\n" \
   "  -r     remove options\n" \
   "  -e <e> set expected exit code to <e>\n" \
   "\n" \
@@ -41,6 +42,10 @@ static const char * src;
 static const char * dst;
 static char * cmd;
 
+static int *qbf;
+static int *prefix;
+static int quantified;
+static int quantify;
 static int ** clauses;
 static int size_clauses;
 static int maxidx;
@@ -89,7 +94,7 @@ static void
 parse (void)
 {
   int i, ch, * clause, lit, sign, size_clause, count_clause, count_clauses;
-  int zipped, val, szbuf = 0, nbuf = 0;
+  int zipped, val, szbuf = 0, nbuf = 0, quantifier = 0;
   char * buffer = 0;
   FILE * file;
  
@@ -200,6 +205,29 @@ NEXT:
   if (isspace (ch))
     goto NEXT;
 
+  if (ch == 'a' || ch == 'e')
+    {
+      if (count_clauses)
+	die ("quantifier after clause");
+
+      if (!quantifier)
+	{
+	  assert (!qbf);
+	  qbf = calloc (maxidx + 1, sizeof *qbf);
+
+	  assert (!prefix);
+	  prefix = malloc (maxidx * sizeof *prefix);
+	}
+      else
+	assert (qbf && prefix);
+
+      if (ch == 'e')
+	quantifier = 1;
+
+      if (ch == 'a')
+	quantifier = -1;
+    }
+
   if (ch == 'c')
     {
       while ((ch = getc (file)) != '\n' && ch != EOF)
@@ -209,6 +237,9 @@ NEXT:
 
   if (ch == '-')
     {
+      if (quantifier) 
+	die ("'-' in quantifier declaration");
+
       sign = -1;
       ch = getc (file);
       if (ch == EOF)
@@ -226,24 +257,36 @@ NEXT:
       while (isdigit (ch = getc (file)))
 	lit = 10 * lit + (ch - '0');
 
-      lit *= sign;
-
-      if (count_clause == size_clause)
+      if (quantifier)
 	{
-	  size_clause = size_clause ? 2 * size_clause : 8;
-	  clause = realloc (clause, size_clause * sizeof (clause[0]));
+	  assert (sign == 1);
+	  if (qbf[lit])
+	    die ("variable %d quantified twice", lit);
+
+	  prefix[quantified++] = quantifier * lit;
+	  qbf[lit] = quantifier * abs (quantified);
 	}
-
-      clause[count_clause++] = lit;
-
-      if (!lit)
+      else
 	{
-	  if (count_clauses == size_clauses)
-	    die ("too many clauses");
+	  lit *= sign;
 
-	  clauses[count_clauses++] = clause;
-	  count_clause = size_clause = 0;
-	  clause = 0;
+	  if (count_clause == size_clause)
+	    {
+	      size_clause = size_clause ? 2 * size_clause : 8;
+	      clause = realloc (clause, size_clause * sizeof (clause[0]));
+	    }
+
+	  clause[count_clause++] = lit;
+
+	  if (!lit)
+	    {
+	      if (count_clauses == size_clauses)
+		die ("too many clauses");
+
+	      clauses[count_clauses++] = clause;
+	      count_clause = size_clause = 0;
+	      clause = 0;
+	    }
 	}
 
       goto NEXT;
@@ -253,6 +296,9 @@ NEXT:
 
   if (count_clause)
     die ("missing '0' after clause");
+
+  if (quantifier)
+    die ("missing '0' after quantifier declaration");
 
   if (count_clauses < size_clauses)
     die ("%d clauses missing", size_clauses - count_clauses);
@@ -266,6 +312,8 @@ NEXT:
 
   msg ("parsed %d variables", maxidx);
   msg ("parsed %d clauses", size_clauses);
+  if (qbf) msg ("this is actually a QBF instance");
+  else msg ("this is a propositional instance");
 }
 
 static int
@@ -366,11 +414,18 @@ keptclauses (void)
   return res;
 }
 
+static int
+sgn (int lit) 
+{
+  if (!lit) return 0;
+  return lit < 0 ? -1 : 1;
+}
+
 static void
 print (const char * name)
 {
   FILE * file = fopen (name, "w");
-  int i, j, lit;
+  int i, j, lit, quantifier = 0;;
 
   if (!file)
     die ("can not write to '%s'", name);
@@ -380,6 +435,53 @@ print (const char * name)
       fprintf (file, "c --%s=%d\n", options[i], values[i]);
 
   fprintf (file, "p cnf %d %d\n", keptvariables (), keptclauses ());
+
+  if (qbf)
+    {
+      quantifier = 0;
+      if (quantify)
+	for (i = 1; i <= maxidx; i++) 
+	  {
+	    if (deref (i) == FALSE)
+	      continue;
+
+	    if (qbf[i])
+	      continue;
+
+	    if (!quantifier)
+	      {
+		quantifier = -1;
+		printf ("e");
+	      }
+
+	    printf (" %d", i);
+	  }
+
+      for (i = 0; i < quantified; i++) 
+	{
+	  lit = prefix[i];
+	  if (sgn (lit) != quantifier)
+	    {
+	      if (quantifier)
+		printf (" 0\n");
+
+	      if (lit < 0)
+		{
+		  quantifier = -1;
+		  printf ("a");
+		}
+	      else
+		{
+		  quantifier = 1;
+		  printf ("e");
+		}
+	    }
+	  printf (" %d", abs (lit));
+	}
+
+      if (quantifier)
+	printf (" 0\n");
+    }
 
   for (i = 0; i < size_clauses; i++)
     {
@@ -780,6 +882,8 @@ reset (void)
     free (clauses[i]);
   free (clauses);
   free (movedto);
+  free (qbf);
+  free (prefix);
   free (cmd);
   for (i = 0; i < nopts; i++)
     free (options[i]);
@@ -806,6 +910,8 @@ main (int argc, char ** argv)
 	removeopts = 1;
       else if (!strcmp (argv[i], "-m"))
 	masksignals = 1;
+      else if (!strcmp (argv[i], "-q"))
+	quantify = 1;
       else if (!cmd && !strcmp (argv[i], "-e"))
         {
           if (i == argc - 1)
