@@ -191,13 +191,13 @@ SKIP:
   if (ch != 'p' || fscanf (file, " cnf %d %d", &maxidx, &size_clauses) != 2)
     die ("expected 'p cnf ...' header");
 
-  movedto = malloc ((maxidx + 1) * sizeof (movedto[0]));
+  movedto = malloc ((maxidx + 1) * sizeof *movedto);
   for (i = 1; i <= maxidx; i++)
     movedto[i] = i;
 
   used = calloc (maxidx + 1, sizeof * used);
 
-  clauses = malloc (size_clauses * sizeof (clauses[0]));
+  clauses = malloc (size_clauses * sizeof *clauses);
 
   clause = 0;
   size_clause = count_clause = count_clauses = 0;
@@ -570,9 +570,8 @@ erase (void)
 static void
 reduce (void)
 {
-  int bytes = size_clauses * sizeof (int);
+  int ** saved = malloc (size_clauses * sizeof *saved);
   int i, j, end, width, found, removed, total;
-  int ** saved = malloc (bytes);
 
   width = size_clauses;
   total = 0;
@@ -731,7 +730,7 @@ move (void)
   moved = movedtomaxidx - count;
   if (count && moved)
     {
-      saved = malloc ((maxidx + 1) * sizeof (saved[0]));
+      saved = malloc ((maxidx + 1) * sizeof *saved);
       for (i = 1; i <= maxidx; i++)
 	saved[i] = movedto[i];
 
