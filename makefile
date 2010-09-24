@@ -1,4 +1,5 @@
-CFLAGS=-Wall -g -m32
+CC=gcc
+CFLAGS=-Wall -g
 cnfdd:
 clean:
 	rm -f cnfdd
