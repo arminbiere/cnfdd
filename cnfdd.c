@@ -675,8 +675,8 @@ shrink (void)
 static void
 move (void)
 {
+  char * occur = calloc (maxidx + 1, sizeof *occur), * sused;
   int i, j, count, * saved, movedtomaxidx, moved, idx;
-  char * occur = calloc (maxidx + 1, sizeof *occur);
 
   for (i = 0; i < size_clauses; i++)
     {
@@ -725,12 +725,14 @@ move (void)
 	}
       else
 	{
-	  assert (run (dst) == expected);
-	  for (i = 1; i <= maxidx; i++)
-	    used[i] = 0;
-	  for (i = 1; i <= maxidx; i++)
-	    if (occur[i])
-	      used[movedto[i]] = 1;
+	  sused = used;
+	  used = occur;
+
+	  print (tmp);
+	  if (run (tmp) == expected)
+	    occur = sused;
+	  else
+	    used = sused;
 	}
 
       free (saved);
@@ -743,6 +745,9 @@ move (void)
       msg ("removed %d variables", moved);
       save ();
     }
+
+  assert (run (dst) == expected);
+
 }
 
 static void
