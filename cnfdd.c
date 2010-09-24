@@ -196,6 +196,8 @@ SKIP:
     movedto[i] = i;
 
   used = calloc (maxidx + 1, sizeof * used);
+  for (i = 1; i <= maxidx; i++)
+    used[i] = 1;
 
   clauses = malloc (size_clauses * sizeof *clauses);
 
@@ -384,27 +386,12 @@ clausesatisfied (int i)
 static int
 keptvariables (void)
 {
-  int i, j, idx, lit, res;
+  int i, res;
 
   res = 0;
-  for (i = 0; i < size_clauses; i++)
-    {
-      if (clausesatisfied (i))
-	continue;
-
-      j = 0;
-      while ((lit = deref (clauses[i][j++])))
-	{
-	  if (lit == FALSE)
-	    continue;
-
-	  assert (lit != TRUE);
-
-	  idx = abs (lit);
-	  if (idx > res)
-	    res = idx;
-	}
-    }
+  for (i = 1; i <= maxidx; i++)
+    if (used[i] && movedto[i] > res)
+      res = movedto[i];
 
   return res;
 }
@@ -430,30 +417,10 @@ sgn (int lit)
 }
 
 static void
-collect (void) 
-{
-  int i, j, idx;
-
-  for (i = 1; i <= maxidx; i++)
-    used[i] = 0;
-
-  for (i = 0; i < size_clauses; i++)
-    {
-      if (!clauses[i])
-	continue;
-
-      j = 0;
-      while ((idx = abs (clauses[i][j++])))
-	if (idx != INT_MAX)
-	  used[idx] = 1;
-    }
-}
-
-static void
 print (const char * name)
 {
   FILE * file = fopen (name, "w");
-  int i, j, lit, quantifier = 0;;
+  int i, j, lit, quantifier = 0;
 
   if (!file)
     die ("can not write to '%s'", name);
@@ -463,8 +430,6 @@ print (const char * name)
       fprintf (file, "c --%s=%d\n", options[i], values[i]);
 
   fprintf (file, "p cnf %d %d\n", keptvariables (), keptclauses ());
-
-  collect ();
 
   if (qbf)
     {
@@ -710,15 +675,25 @@ shrink (void)
 static void
 move (void)
 {
-  int i, j, count, * saved, movedtomaxidx, moved;
+  int i, j, count, * saved, movedtomaxidx, moved, idx;
+  char * occur = calloc (maxidx + 1, sizeof *occur);
 
-  collect ();
+  for (i = 0; i < size_clauses; i++)
+    {
+      if (!clauses[i])
+	continue;
+
+      j = 0;
+      while ((idx = abs (clauses[i][j++])))
+	if (idx != INT_MAX)
+	  occur[idx] = 1;
+    }
 
   movedtomaxidx = 0;
   count = 0;
   for (i = 1; i <= maxidx; i++)
     {
-      if (!used[i])
+      if (!occur[i])
 	continue;
 
       if (movedto[i] > movedtomaxidx)
@@ -736,7 +711,7 @@ move (void)
 
       j = 0;
       for (i = 1; i <= maxidx; i++)
-	if (used[i])
+	if (occur[i])
 	  movedto[i] = ++j;
 
       assert (j == count);
@@ -749,10 +724,19 @@ move (void)
 	    movedto[i] = saved[i];
 	}
       else
-	assert (run (dst) == expected);
+	{
+	  assert (run (dst) == expected);
+	  for (i = 1; i <= maxidx; i++)
+	    used[i] = 0;
+	  for (i = 1; i <= maxidx; i++)
+	    if (occur[i])
+	      used[movedto[i]] = 1;
+	}
 
       free (saved);
     }
+
+  free (occur);
 
   if (moved)
     {
