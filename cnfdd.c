@@ -10,7 +10,7 @@
   "  -r     remove options\n" \
   "  -e <e> set expected exit code to <e>\n" \
   "\n" \
-  "  src    file name of an existing CNF in DIMACS format\n" \
+  "  src    file name of an existing CNF in DIMACS or QDIMACS format\n" \
   "  dst    file name of generated minimized CNF\n" \
   "  cmd    command to debug (expects a CNF file as argument)\n" \
   "\n" \
@@ -21,8 +21,8 @@
   "\n" \
   "Comments before the header are scanned for option value pairs\n" \
   "of the form '--<option-name>=<integer-value>'.  These are kept\n" \
-  "in the reduced and intermediate files as well.  We will try to\n" \
-  "delta debug those in future versions as well.\n"
+  "in the reduced and intermediate files as well and delta\n" \
+  "debugged towards 0.\n"
 
 #include <stdio.h>
 #include <stdlib.h>
