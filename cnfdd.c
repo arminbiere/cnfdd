@@ -716,24 +716,18 @@ move (void)
 
       assert (j == count);
 
+      sused = used;
+      used = occur;
       print (tmp);
       if (run (tmp) != expected)
 	{
 	  moved = 0;
 	  for (i = 1; i <= maxidx; i++)
 	    movedto[i] = saved[i];
+	  used = sused;
 	}
       else
-	{
-	  sused = used;
-	  used = occur;
-
-	  print (tmp);
-	  if (run (tmp) == expected)
-	    occur = sused;
-	  else
-	    used = sused;
-	}
+	occur = sused;
 
       free (saved);
     }
