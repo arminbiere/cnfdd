@@ -1,4 +1,4 @@
-/* Copyright (c) 2006 - 2010, Armin Biere, Johannes Kepler University. */
+/* Copyright (c) 2006 - 2011, Armin Biere, Johannes Kepler University. */
 
 #define USAGE \
   "usage: cnfdd [-h|-t] src dst cmd [<cmdopt> ...]\n" \
@@ -6,6 +6,7 @@
   "  -h     print this command line option summary\n" \
   "  -t     thorough mode, e.g. iterate same widths multiple times\n" \
   "  -m     mask out signals from exit code\n" \
+  "  -c     compute clausal core (do not shrink)\n" \
   "  -q     quantify explicitly even outer-most existential variables\n" \
   "  -r     remove options\n" \
   "  -e <e> set expected exit code to <e>\n" \
@@ -63,6 +64,7 @@ static char ** options;
 static int * values;
 static int szopts;
 static int nopts;
+static int coreonly;
 
 static void
 die (const char * fmt, ...)
@@ -914,6 +916,8 @@ main (int argc, char ** argv)
 	masksignals = 1;
       else if (!strcmp (argv[i], "-q"))
 	quantify = 1;
+      else if (!strcmp (argv[i], "-c"))
+	coreonly = 1;
       else if (!cmd && !strcmp (argv[i], "-e"))
         {
           if (i == argc - 1)
@@ -956,6 +960,7 @@ main (int argc, char ** argv)
     {
       changed = 0;
       reduce ();
+      if (coreonly) continue;
       move ();
       shrink ();
       move ();
