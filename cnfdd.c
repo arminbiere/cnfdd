@@ -1,4 +1,4 @@
-/* Copyright (c) 2006 - 2011, Armin Biere, Johannes Kepler University. */
+/* Copyright (c) 2006 - 2017, Armin Biere, Johannes Kepler University. */
 
 #define USAGE \
   "usage: cnfdd [-h|-t] src dst cmd [<cmdopt> ...]\n" \
@@ -9,6 +9,7 @@
   "  -c     compute clausal core (do not shrink)\n" \
   "  -q     quantify explicitly even outer-most existential variables\n" \
   "  -r     remove options\n" \
+  "  -s     skip first clause removal rounds\n" \
   "  -e <e> set expected exit code to <e>\n" \
   "\n" \
   "  src    file name of an existing CNF in DIMACS or QDIMACS format\n" \
@@ -65,6 +66,7 @@ static int * values;
 static int szopts;
 static int nopts;
 static int coreonly;
+static int skip_clause_removal;
 
 static void
 die (const char * fmt, ...)
@@ -912,6 +914,8 @@ main (int argc, char ** argv)
 	thorough = 1;
       else if (!cmd && !strcmp (argv[i], "-r"))
 	removeopts = 1;
+      else if (!cmd && !strcmp (argv[i], "-s"))
+	skip_clause_removal = 1;
       else if (!strcmp (argv[i], "-m"))
 	masksignals = 1;
       else if (!strcmp (argv[i], "-q"))
@@ -959,7 +963,8 @@ main (int argc, char ** argv)
   for (round = 1; changed; round++)
     {
       changed = 0;
-      reduce ();
+      if (skip_clause_removal) skip_clause_removal--;
+      else reduce ();
       if (coreonly) continue;
       move ();
       shrink ();
