@@ -101,7 +101,7 @@ has_suffix (const char * str, const char * suffix)
 {
   size_t l = strlen (str);
   size_t k = strlen (suffix);
-  if (k < l)
+  if (l < k)
     return 0;
   return !strcmp (src + l - k, suffix);
 }
