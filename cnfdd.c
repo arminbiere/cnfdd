@@ -1,4 +1,4 @@
-/* Copyright (c) 2006 - 2017, Armin Biere, Johannes Kepler University. */
+/* Copyright (c) 2006 - 2019, Armin Biere, Johannes Kepler University. */
 
 #define USAGE \
   "usage: cnfdd [-h|-t] src dst cmd [<cmdopt> ...]\n" \
@@ -26,13 +26,14 @@
   "in the reduced and intermediate files as well and delta\n" \
   "debugged towards 0.\n"
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <assert.h>
-#include <stdarg.h>
-#include <string.h>
 #include <ctype.h>
 #include <limits.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -95,6 +96,27 @@ msg (const char * fmt, ...)
   fflush (stderr);
 }
 
+static int
+has_suffix (const char * str, const char * suffix)
+{
+  size_t l = strlen (str);
+  size_t k = strlen (suffix);
+  if (k < l)
+    return 0;
+  return !strcmp (src + l - k, suffix);
+}
+
+static FILE *
+open_pipe (const char * src, const char * fmt)
+{
+  char * cmd = malloc (strlen (src) + strlen (fmt));
+  FILE * res;
+  sprintf (cmd, fmt, src);
+  res = popen (cmd, "r");
+  free (cmd);
+  return res;
+}
+
 static void
 parse (void)
 {
@@ -102,15 +124,22 @@ parse (void)
   int zipped, val, szbuf = 0, nbuf = 0, quantifier = 0;
   char * buffer = 0;
   FILE * file;
- 
-  if (strlen (src) > 3 && !strcmp (src + strlen (src) - 3, ".gz"))
-    {
-      const char * gunzip = "gunzip -c %s 2>/dev/null";
 
-      char * cmd = malloc (strlen (src) + strlen (gunzip));
-      sprintf (cmd, gunzip, src);
-      file = popen (cmd, "r");
-      free (cmd);
+  struct stat buf;
+  if (stat (src, &buf))
+    die ("can not stat '%s'", src);
+
+  if (access (src, R_OK))
+    die ("can not access '%s'", src);
+ 
+  if (has_suffix (src, ".gz"))
+    {
+      file = open_pipe (src, "gzip -d -c %s");
+      zipped = 1;
+    }
+  else if (has_suffix (src, ".xz"))
+    {
+      file = open_pipe (src, "xz -d -c %s");
       zipped = 1;
     }
   else
