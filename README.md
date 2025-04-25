@@ -6,7 +6,8 @@ This is our external CNF Delta-Debugger we have been using since 2007.
 External means that we simply delta-debug CNF files.  This is enough for
 stand-alone solvers (such as [Kissat](https://github.com/arminbiere/kissat),
 but in general we consider delta-debugging API calls in the context of model-based
-testing as way superior (as `mobical` does for [CaDiCaL](https://github.com/arminbiere/cadical).
+testing as way superior (as `mobical` does for
+[CaDiCaL](https://github.com/arminbiere/cadical)).
 
 In any case you may want to consider *option delta-debugging* and also externalize
 as many parameters as possible of your software and turn them into options,
