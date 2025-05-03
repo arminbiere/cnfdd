@@ -964,8 +964,13 @@ main (int argc, char ** argv)
       else if (cmd)
 	{
 	  char * old = cmd;
-	  cmd = malloc (strlen (old) + 1 + strlen (argv[i]) + 1);
-	  sprintf (cmd, "%s %s", old, argv[i]);
+          size_t old_len = strlen (old);
+          size_t argv_i_len = strlen (argv[i]);
+          size_t cmd_len = old_len + argv_i_len + 2;
+	  cmd = malloc (cmd_len);
+          strcpy (cmd, old);
+          old[old_len] = ' ';
+          strcpy (cmd + old_len + 1, argv[i]);
 	  free (old);
 	}
       else if (dst)
